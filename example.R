@@ -4,7 +4,7 @@ source('fieldPlotCreation.r')
 
 tst <- plotRep(
     llLat = 43.300261,      # lower left latitude  
-    llOng = -89.385877,     # lower left longitude
+    llLong = -89.385877,     # lower left longitude
     ulLat = 43.300400,      # upper left corner latitude
     ulLong = -89.385877,    # upper left corner longitude
     lngth = 10,             # length of plot
