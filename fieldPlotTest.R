@@ -27,9 +27,13 @@ NtoS = 6
 EtoW = 6
 metric = F
 
-
+vects = list(posVect1, posVect2, posVect3, posVect4)
+for (i in 1:length(vects)){
+	plotRep(vects[[i]], lngth=lngth, wdth=wdth, NtoS=6, EtoW=6, metric=F)
+	
+}
 tst <- plotRep(
-		positionVect = posVect6,
+		positionVect = posVect1,
 #		llLat = llLat,      # lower left latitude  
 #		llLong = llLong,     # lower left longitude
 #		ulLat = ulLat,      # upper left corner latitude
@@ -38,5 +42,5 @@ tst <- plotRep(
 		wdth = wdth,              # width of plot
 		NtoS = 6,               # number of plots in the rep running north to south
 		EtoW = 6,               # no of plots in the rep running east to west
-		fileName = "A2sp_Rep4_v2", # name of file --- currently not implemented
+#		fileName = "A2sp_Rep4_v2", # name of file --- currently not implemented
 		metric = F) 

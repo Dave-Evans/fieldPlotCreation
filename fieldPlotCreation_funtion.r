@@ -72,13 +72,14 @@ plotRep <- function(positionVect, lngth, wdth, NtoS, EtoW, #llLat, llLong, ulLat
 #         labls <- rbind(labls, spdf@polygons[[lbl]]@labpt)
 #    }
 #	text(labls, labels = spdf@data$id)
-    return(spdf)
+    
 	
 #	tst = #readWKT("POLYGON((572329.344801682 314228.490062432,572329.344801682 314237.634062432,572329.344801682 314246.778062432,572330.868801682 314228.490062432,572329.344801682 314228.490062432))")
     #spdfExp <- spTransform(spdf, CRS("+proj=longlat +datum=WGS84"))
     #Potentially  future support for kml or shapefile export
 #     writeOGR(spdfExp['id'], paste(fileName,'.kml',sep = ''), 'id',driver = 'KML')
     # writing a shapefile
-     writeOGR(spdf,"test.shp", 'id',driver = 'ESRI Shapefile')
+     writeOGR(spdf,fileName, 'id',driver = 'ESRI Shapefile')
+	 return(spdf)
 }
 
