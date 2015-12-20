@@ -15,9 +15,17 @@ library(rgeos)
 #EtoW = 5               # no of plots in the rep running east to west
 #fileName = "A2sp_Rep4_v2" # name of file --- currently not implemented
 #metric = F             # are the length and width in metric or english?
+#positionVect = c(43.294263, -89.381099, 43.294654, -89.381104)
+#lngth = 15
+#wdth = 15
+#NtoS = 6
+#EtoW = 6
+#metric = F
+#floatX = F
 
-plotRep <- function(positionVect, lngth, wdth, NtoS, EtoW, #llLat, llLong, ulLat, ulLong
+plotRep <- function(positionVect, lngth, wdth, NtoS, EtoW, floatX = TRUE,
                     fileName = paste('plot_',as.double(Sys.time()), sep = ''), metric = T){
+	
 #    corners <- matrix(c(llLat, llLong, ulLat, ulLong), 2,2, T)
 	corners <- matrix(positionVect, 2, 2, T)
     rownames(corners) <- c('ll','ul')
@@ -32,18 +40,27 @@ plotRep <- function(positionVect, lngth, wdth, NtoS, EtoW, #llLat, llLong, ulLat
        lngth <- lngth * 0.3048
        wdth <- wdth * 0.3048
     }
-	### Maybe incorporate a try catch here to force the proper dimension
+	
     y_seq <- seq(crds[1,2],
-              crds[2,2]+lngth/2, length.out=NtoS+1)#lngth)
-    x_seq <- seq(crds[1,1],
-              crds[1,1]+(EtoW*wdth), length.out=EtoW)#wdth)
+      crds[2,2]+lngth/2, length.out=NtoS+1)#lngth)
+	### Use length.out=EtoW when constant width desired
+	### User by=wdth when width can float
+	if (floatX){
+		x_seq <- seq(crds[1,1],
+			crds[1,1]+(EtoW*wdth), by=wdth)		
+	} else {
+		x_seq <- seq(crds[1,1],
+			crds[1,1]+(EtoW*wdth), length.out=EtoW)
+	}
+
 	cnter = 0
 	polyStrList = "MULTIPOLYGON("
 	
 	for (y in y_seq){
 		if (y == max(y_seq)) { break }
 		for (x in x_seq){
-#			if (x == max(x_seq)) { break }
+			### Need this when letting width grow
+			if (floatX & (x == max(x_seq)) ) { break }
 			cnter=cnter+1
 			pt1 = paste(x,y)
 			pt2 = paste(x,y+lngth)
@@ -64,22 +81,15 @@ plotRep <- function(positionVect, lngth, wdth, NtoS, EtoW, #llLat, llLong, ulLat
 	spPolys = disaggregate(spPolys)
     spdf <- SpatialPolygonsDataFrame(spPolys,dat)
     proj4string(spdf) <- wtm
-    plot(spdf)
-	text(getSpPPolygonsLabptSlots(spdf), labels=spdf@data$id)
-    
-#    labls <- NULL
-#    for (lbl in 1:length(spdf@polygons)){
-#         labls <- rbind(labls, spdf@polygons[[lbl]]@labpt)
-#    }
-#	text(labls, labels = spdf@data$id)
-    
-	
-#	tst = #readWKT("POLYGON((572329.344801682 314228.490062432,572329.344801682 314237.634062432,572329.344801682 314246.778062432,572330.868801682 314228.490062432,572329.344801682 314228.490062432))")
-    #spdfExp <- spTransform(spdf, CRS("+proj=longlat +datum=WGS84"))
-    #Potentially  future support for kml or shapefile export
-#     writeOGR(spdfExp['id'], paste(fileName,'.kml',sep = ''), 'id',driver = 'KML')
-    # writing a shapefile
-     writeOGR(spdf,fileName, 'id',driver = 'ESRI Shapefile')
+
+    ## plot(spdf)
+	## text(getSpPPolygonsLabptSlots(spdf), labels=spdf@data$id)
+
+    ### Potentially  future support for kml or shapefile export
+	## writeOGR(spdfExp['id'], paste(fileName,'.kml',sep = ''), 'id',driver = 'KML')
+
+    ### writing a shapefile
+     ##writeOGR(spdf,fileName, 'id',driver = 'ESRI Shapefile')
 	 return(spdf)
 }
 
