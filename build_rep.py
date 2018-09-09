@@ -74,7 +74,7 @@ info = {
 
 
 
-conn = psycopg2.connect(database='wieff', password='jackson')
+conn = psycopg2.connect(database='', password='')
 cur = conn.cursor()
 pts_polys = []
 
