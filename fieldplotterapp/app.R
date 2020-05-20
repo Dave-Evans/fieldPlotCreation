@@ -16,16 +16,29 @@ ui <- dashboardPage(
         tabItems(
             # First tab content
             tabItem(tabName = "dashboard",
-                    fluidRow(
-                        box(plotOutput('plot1'))
-                    ),
+                    
+                    
+                    
                     fluidRow(
                         # downloadButton("downloadData", "Download"),
-                        
-                        box(tableOutput("raw_params")),
-                        
+                        box(plotOutput('plot1')),    
                         box(
                             title = "Parameters",
+                            numericInput("row_width", "Row width:", 3, min = 1),
+                            numericInput("row_per_subplot", "Rows per subplot:", 4, min = 1),
+                            numericInput("subplot_width", "Subplot width:", 12, min = 1),
+                            numericInput("subplot_length", "Subplot length:", 25, min = 1),
+                            numericInput("subplot_n", "Number of subplots:", 6, min = 1),
+                            numericInput("subplot_col_n", "Number of subplot columns:", 3, min = 1),
+                            numericInput("subplot_row_n", "Number of subplot rows:", 2, min = 1),
+                            
+                            numericInput("plot_length", "Plot length:", 68, min = 1),
+                            numericInput("plot_width", "Plot width:", 48, min = 1),
+                            numericInput("plot_n", "Number of plots:", 21, min = 1),
+                            numericInput("plot_col_n", "Number of plot columns:", 3, min = 1),
+                            numericInput("plot_row_n", "Number of plot rows:", 7, min = 1),
+                            numericInput("sub_field_break_col", "Number of subfield break columns:", 0, min = 0),
+                            numericInput("sub_field_break_row", "Number of subfield break rows:", 0, min = 0), 
                             numericInput("field_length", "Field length:", 560, min = 1),
                             numericInput("field_width", "Field width:", 215, min = 1),
                             
@@ -42,23 +55,9 @@ ui <- dashboardPage(
                             numericInput("bottom_guard", "Bottom guard width:", 1, min = 0),
                             numericInput("top_guard", "Top guard width:", 1, min = 0),
                             
-                            numericInput("spray_alley_width", "Spray Alley width:", 12, min = 1),
+                            numericInput("spray_alley_width", "Spray Alley width:", 12, min = 1)
                             
-                            numericInput("row_width", "Row width:", 3, min = 1),
-                            numericInput("row_per_subplot", "Rows per subplot:", 4, min = 1),
-                            numericInput("subplot_width", "Subplot width:", 12, min = 1),
-                            numericInput("subplot_length", "Subplot length:", 25, min = 1),
-                            numericInput("subplot_n", "Number of subplots:", 6, min = 1),
-                            numericInput("subplot_col_n", "Number of subplot columns:", 3, min = 1),
-                            numericInput("subplot_row_n", "Number of subplot rows:", 2, min = 1),
                             
-                            numericInput("plot_length", "Plot length:", 68, min = 1),
-                            numericInput("plot_width", "Plot width:", 48, min = 1),
-                            numericInput("plot_n", "Number of plots:", 21, min = 1),
-                            numericInput("plot_col_n", "Number of plot columns:", 3, min = 1),
-                            numericInput("plot_row_n", "Number of plot rows:", 7, min = 1),
-                            numericInput("sub_field_break_col", "Number of subfield break columns:", 0, min = 0),
-                            numericInput("sub_field_break_row", "Number of subfield break rows:", 0, min = 0)                        
                             
                         )
                     )
@@ -73,7 +72,8 @@ ui <- dashboardPage(
             # Third tab content
             tabItem(tabName = "parameter_file",
                     h2("Download the parameter file"),
-                    downloadButton("downloadData", "Download")
+                    downloadButton("downloadData", "Download"),
+                    box(tableOutput("raw_params"))
             )            
             
         )
@@ -129,7 +129,7 @@ server <- function(input, output) {
         
         field_boundary <- bind_rows(field,plot_area)
         
-        one_subplot_area <- make_one_subplot_area()
+        one_subplot_area <- make_one_subplot_area(params)
         many_subplot_area <-make_many_subplot_area(plot_area, one_subplot_area)
         
         plot_origins <- get_plot_origins(plot_area)
@@ -144,9 +144,18 @@ server <- function(input, output) {
             mutate(x_mid_temp =  x_mid + params$spray_alley_width*plot_col) %>% # add spray alley
             mutate(x_mid = ifelse(layer_id == "study",x_mid,x_mid_temp)) %>%
             select(-x_mid_temp)
+    
+        # For displaying different componenets
+        field_boundary %>% mutate(
+            fill_plots = case_when(
+                layer_id == 'study' ~ 'study',
+                layer_id == 'plot' ~ fill,
+                layer_id == 'subplot' ~ 'subplot',
+            )
+        ) -> field_boundary
         # debugging subplots, plots and field 
         field_plot_subplots <-  ggplot() +
-            geom_tile(data = field_boundary, aes(x=x_mid,y=y_mid,width=x_length,height=y_length,fill = fill)) 
+            geom_tile(data = field_boundary, aes(x=x_mid,y=y_mid,width=x_length,height=y_length,fill = fill_plots)) 
         field_plot_subplots
         
         

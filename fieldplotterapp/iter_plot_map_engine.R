@@ -140,7 +140,7 @@ init_subplot_map <- function(x_length, y_length, subplot_n, subplot_col_n, subpl
 # row_width = 2.5
 # 
 
-make_one_subplot_area <- function(){
+make_one_subplot_area <- function(params){
                     init_subplot_map(
                       x_length = params$row_per_subplot*params$row_width,
                       y_length = params$subplot_length,
