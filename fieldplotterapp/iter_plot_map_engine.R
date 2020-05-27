@@ -20,6 +20,7 @@
 
 read_params <- function(params_raw=params_raw){
           params_raw[,2] = as.numeric(params_raw[,2])
+          
           params <- t(params_raw[,2]) %>%
           `colnames<-` (unlist(params_raw[,1])) %>% as.data.frame(.)
 
@@ -232,12 +233,12 @@ init_subplot_row <- function(x_length, y_length,row_per_subplot){
 #   geom_tile(data = one_subplot_row,aes(x=x_mid,y=y_mid,width=x_length,height=y_length,fill = as.factor(id)))
 
 
-get_many_subplot_with_rows <- function(){
+get_many_subplot_with_rows <- function(one_subplot_area, one_subplot_row){
   tibble(subplot = rep(1:max(one_subplot_area$id), each = max(one_subplot_row$id))) %>% #  subplot id for each row
   bind_cols(do.call("rbind", replicate(max(max(one_subplot_area$id)), one_subplot_row, simplify = FALSE))) # like a merge, but repeat the row info for each subplot
   }
 
-get_subplot_origins <- function(subplot_area=subplot_area){
+get_subplot_origins <- function(subplot_area, plot_area){
                    subplot_area %>% select(subplot = id, sub_x_mid = x_mid, sub_y_mid = y_mid ,x_length:plot_row) %>%
                    mutate(x0 = sub_x_mid - x_length/2, y0 = sub_y_mid - y_length/2) %>%
                    select(-c(sub_x_mid:y_length)) %>%
@@ -245,13 +246,31 @@ get_subplot_origins <- function(subplot_area=subplot_area){
                  }
   
   
-get_each_plot_subplot_with_rows <- function(many_subplot_with_rows=many_subplot_with_rows,subplot_origins=subplot_origins){
-  tibble(plot = rep(1:max(plot_area$id), each = max(one_subplot_area$id)*max(one_subplot_row$id))) %>%
-  bind_cols(do.call("rbind", replicate(max(plot_area$id), many_subplot_with_rows, simplify = FALSE))) %>% # cool, there is now 480 rows with identical mid points
-  select(-c(plot_col:subplot_col)) %>% # dump the place holder columns full of NA
-  left_join(subplot_origins, by = c("subplot"= "subplot", "plot"="plot")) %>% # 480 on the trial run - as expected
-  mutate(x_mid = x_mid + x0, y_mid=y_mid + y0) %>% 
-  select(-c(x0,y0))
+get_each_plot_subplot_with_rows <- function(
+  many_subplot_with_rows=many_subplot_with_rows,
+  subplot_origins=subplot_origins,
+  plot_area=plot_area,
+  one_subplot_area=one_subplot_area,
+  one_subplot_row=one_subplot_row
+  ){
+  tibble(
+    plot = rep(1:max(plot_area$id), each = max(one_subplot_area$id) * max(one_subplot_row$id))
+    ) %>% 
+  bind_cols(
+    do.call("rbind", replicate(max(plot_area$id), many_subplot_with_rows, simplify = FALSE))
+    ) %>% # cool, there is now 480 rows with identical mid points
+  select(
+    -c(plot_col:subplot_col)
+     ) %>% # dump the place holder columns full of NA
+  left_join(
+    subplot_origins, by = c("subplot"= "subplot", "plot"="plot")
+    ) %>% # 480 on the trial run - as expected
+  mutate(
+    x_mid = x_mid + x0, y_mid=y_mid + y0
+    ) %>% 
+  select(
+    -c(x0,y0)
+    )
  }
 
 # # debugging
@@ -307,8 +326,108 @@ tile2polygon <- function(df,x_mid,y_mid,x_length,y_length) {
           mutate(level = factor(level,ordered=TRUE,c("ll","lr","ur","ul")))
 }
 
+## Functions from point2latlong.R
+options(digits = 10)
+rad2deg <- function(rad) {(rad * 180) / (pi)}
+deg2rad <- function(deg) {(deg * pi) / (180)}
 
-# field_boundary_polygon <- tile2polygon(field_boundary,x_mid=x_mid,y_mid=y_mid,x_length=x_length,y_length=y_length)
+equirectangular <- function(lat1,lon1,lat2,lon2){
+  x = deg2rad(lon2-lon1)*cos(deg2rad(lat1-lat2)/2)
+  y = deg2rad(lat1-lat2)
+  R = 20903520 #41717290 # poles 41851443 # equiator  # # im feet #63728000 # gives d in m
+  distance = sqrt(x^2+y^2)*R
+  distance
+}
+
+modequirect <- function(lat1,lon1,lat2,lon2){
+  lon1 = abs(lon1)
+  lon2 = abs(lon2)
+  alpha = lon2-lon1
+  x = deg2rad(alpha)*cos(deg2rad(lat1-lat2)/2)
+  y = deg2rad(lat1-lat2)
+  R = 20903520 #41717290 # poles 41851443 # equiator R = 6372.8; // gives d in km
+  distance = sqrt(x^2+y^2)*R
+  distance
+}
 
 
+haversine <- function(lat1,lon1,lat2,lon2) {
+  deltaLat = lat2 - lat1 
+  deltaLon = lon2 - lon1 
+  earthRadius = 20903520 #41717290 # poles 41851443 # equiator6372.8; // 3959 in miles.
+  alpha = deltaLat/2
+  beta = deltaLon/2
+  a = sin(deg2rad(alpha)) * sin(deg2rad(alpha)) + cos(deg2rad(lat1)) * cos(deg2rad(lat2)) * sin(deg2rad(beta)) * sin(deg2rad(beta)) 
+  c = 2 * atan2(sqrt(a), sqrt(1-a));
+  distance = earthRadius * c;
+  distance
+} 
+
+azi <- function(lat1=lat1,lon1=lon1,lat2=lat2,lon2=lon2){
+  options(digits = 10)
+  rad2deg <- function(rad) {(rad * 180) / (pi)}
+  deg2rad <- function(deg) {(deg * pi) / (180)}
+  
+  atan2(sin(deg2rad(lon2-lon1)) * cos(deg2rad(lat2)),
+        cos(deg2rad(lat1))*sin(deg2rad(lat2))-sin(deg2rad(lat1))*cos(deg2rad(lat2))*cos(deg2rad(lon2-lon1)))
+}
+
+
+
+azi.pts <- function(lat1,lon1,lat2,lon2) {
+  c(lat1 = lat1,lon1 = lon1,lat2=lat2,lon2=lon2)
+} 
+
+
+convert <- function(lat0,lon0,dist,bearing,R = 20925646){
+  options(digits = 10)
+  lat0 =  44.119338 
+  lon0 = -89.539541
+  dist = sqrt(100^2)
+  bearing = 90
+  lat1 = deg2rad(lat0)
+  lon1 = deg2rad(lon0)
+  r = dist/R
+  brng = deg2rad(bearing)
+  #          lat2: =ASIN(SIN(lat1)*COS(d/R) + COS(lat1)*SIN(d/R)*COS(brng))
+  r = deg2rad(dist/R)
+  lat2 = asin(sin(lat1)*cos(r) + cos(lat1) * sin(r) * cos(brng))
+  lon2 = lon1 + atan2(sin(brng)*sin(r)*cos(lat1),cos(r)-sin(lat1)*sin(lat2))
+  lat3 = rad2deg(lat2)
+  lon3 = rad2deg(lon2)
+  lon3
+  lat3
+  #return(data.frame(lon=lon3,lat=lat3))
+  p3 <- data.frame(lon=lon3,lat=lat3)
+  
+} 
+
+convert_lat <- function(lat0,lon0,dist,bearing,R = 20925646){
+  options(digits = 10)
+  lat1 = deg2rad(lat0)
+  lon1 = deg2rad(lon0)
+  brng = deg2rad(bearing)
+  r = dist/R
+  lat2 = asin(sin(lat1)*cos(r) + cos(lat1) * sin(r) * cos(brng))
+  lon2 = lon1 + atan2(sin(brng)*sin(dist/R)*cos(lat1),cos(dist/R)-sin(lat1)*sin(lat2))
+  lat3 = rad2deg(lat2)
+  lon3 = rad2deg(lon2)
+  return(lat3)
+  
+} 
+convert_lon <- function(lat0, lon0, dist, bearing,R = 20925646){
+  options(digits = 10)
+  lat1 = deg2rad(lat0)
+  lon1 = deg2rad(lon0)
+  brng = deg2rad(bearing)
+  r = dist/R
+  lat2 = asin(sin(lat1)*cos(r) + cos(lat1) * sin(r) * cos(brng))
+  lon2 = lon1 + atan2(sin(brng)*sin(dist/R)*cos(lat1),cos(dist/R)-sin(lat1)*sin(lat2))
+  lat3 = rad2deg(lat2)
+  lon3 = rad2deg(lon2)
+  return(lon3)
+  
+} 
+
+specify_decimal <- function(x, k) trimws(format(round(x, k), nsmall=k))
   
