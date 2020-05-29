@@ -3,6 +3,8 @@ library(tidyverse)
 library(sp)
 library(rgdal)
 library(leaflet)
+options(digits = 10)
+
 source("iter_plot_map_engine.R")
 
 ui <- dashboardPage(
@@ -71,6 +73,11 @@ ui <- dashboardPage(
             # location tab content
             tabItem(tabName = "location",
                     h2("Location"),
+                    # verbatimTextOutput("value", placeholder = TRUE),
+                    numericInput("origin_lat", "Latitude", value = 44.2),
+                    numericInput("origin_lng", "Longitude", value = -89.5),
+                    numericInput("heading", "Heading", value = 0, min = 0, max = 360),
+                    actionButton("show_plot", "Plot my plots"),
                     leafletOutput("mymap")
             ),
             
@@ -90,7 +97,7 @@ ui <- dashboardPage(
     )
 )
 
-server <- function(input, output) {
+server <- function(input, output, session) {
     
     names_params = c("field_length", 'field_width', 'field_setback_x', 'field_setback_y',
                      'left_subguard_width', 'right_subguard_width', 'bottom_subguard_length',
@@ -101,12 +108,43 @@ server <- function(input, output) {
                      'plot_row_n', 'sub_field_break_col', 'sub_field_break_row')
     
     output$mymap <- renderLeaflet({
+        
+        spolys = readOGR(dsn = "~/Documents", layer = "mackplots")
+        
         leaflet() %>%
-            addProviderTiles(providers$Stamen.TonerLite,
-                             options = providerTileOptions(noWrap = TRUE)
-            )
+            # addProviderTiles(providers$Stamen.TonerLite, options = providerTileOptions(noWrap = TRUE)) %>%
+            addProviderTiles(providers$Esri.WorldImagery,
+            # addProviderTiles(providers$Esri.WorldStreetMap, 
+            # addProviderTiles(providers$OpenStreetMap,
+            # addProviderTiles(providers$CartoDB,
+                             options = providerTileOptions(minZoom = 8, maxZoom = 24))  %>% 
+            setView(lng = -89, lat = 44, zoom = 6) %>%
+            addPolygons(data = spolys)
     })
+    
+    # When map is clicked, collect coordinates
+    observe({
+        
+        event <- input$mymap_click
+        if (is.null(event))
+            return()
+        
+        # output$value <- renderText({ 
+        #     paste(
+        #         paste("Latitude:", event$lat),
+        #         paste("Longitude:", event$lng),
+        #         sep="\n"
+        #     )
+        # })
+        updateNumericInput(session, "origin_lat", value = event$lat)
+        updateNumericInput(session, "origin_lng", value = event$lng)
 
+    })
+    
+    randomVals <- eventReactive(input$show_plot, {
+        runif(input$n)
+    })
+    
     param_dat = reactive({
         test_params = data.frame()
         for (nm in names_params){
@@ -189,17 +227,18 @@ server <- function(input, output) {
             select(-x_mid_temp)
         
         # debugging every row, subplots, plots and field 
-        every_row_subplot_plot_field <- ggplot() +
-            geom_tile(data = field_boundary, aes(x=x_mid,y=y_mid,width=x_length,height=y_length,fill = fill),alpha = 0.75) 
+        # every_row_subplot_plot_field <- ggplot() +
+            # geom_tile(data = field_boundary, aes(x=x_mid,y=y_mid,width=x_length,height=y_length,fill = fill),alpha = 0.75) 
         
         # Convert to polygon
         field_boundary_polygon <- tile2polygon(field_boundary,x_mid=x_mid,y_mid=y_mid,x_length=x_length,y_length=y_length)
         field_boundary_polygon %>%
             filter(layer_id == "row") %>%
             ggplot(.) + geom_polygon(aes(x=x,y=y,group = interaction(plot,subplot,id), fill = id))
+        
+        
         # origin <- data.frame(lon = -89.539541,lat = 44.119338,heading = 0.0)
-        # options(digits = 10)
-        # polyanna <- field_boundary_polygon %>%          
+        # polyanna <- field_boundary_polygon %>%
         #     mutate(
         #         d = c(sqrt(x^2+y^2)), # thats in feet
         #         alpha = round(rad2deg(ifelse(d==0,0,asin(x/d))),3),
@@ -211,7 +250,7 @@ server <- function(input, output) {
         #         lon0 = origin$lon
         #     )
         # ## Convert to spatial dataframe
-        # polyanna %>% 
+        # polyanna %>%
         #     filter(layer_id == "row") %>%
         #     mutate(polyid = paste0(
         #         id,
@@ -228,7 +267,7 @@ server <- function(input, output) {
         #     # Ensure that the first point and last point is not the same.
         #     # If the same, then duplicate the first record at the end
         #     if (!all(tmp_pts[1, c('lat', 'lon')] == tmp_pts[nrow(tmp_pts), c('lat', 'lon')])){
-        #         tmp_pts = rbind(tmp_pts, tmp_pts[1,])  
+        #         tmp_pts = rbind(tmp_pts, tmp_pts[1,])
         #     }
         #     tmp_pts %>%
         #         select(c('lon','lat')) %>%
@@ -236,9 +275,9 @@ server <- function(input, output) {
         #             lon = as.numeric(lon),
         #             lat = as.numeric(lat)
         #        ) -> tmp_pts
-        #     
+        # 
         #     poly_list[id] = Polygons(list(Polygon(tmp_pts)), id)
-        #     
+        # 
         # }
         # spolys = SpatialPolygons(poly_list)
         # plot(spolys)
