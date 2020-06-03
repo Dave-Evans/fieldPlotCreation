@@ -77,7 +77,8 @@ ui <- dashboardPage(
                     numericInput("origin_lat", "Latitude", value = 44.2),
                     numericInput("origin_lng", "Longitude", value = -89.5),
                     numericInput("heading", "Heading", value = 0, min = 0, max = 360),
-                    actionButton("show_plot", "Plot my plots"),
+                    actionButton("show_plot", "Plot plots"),
+                    actionButton("clear_plot", "Clear plots"),
                     leafletOutput("mymap")
             ),
             
@@ -99,6 +100,12 @@ ui <- dashboardPage(
 
 server <- function(input, output, session) {
     
+    origin <- reactive({
+        data.frame(lon = input$origin_lng, lat = input$origin_lat, heading = input$heading)
+    })
+    
+    spolys = readOGR(dsn = "~/Documents", layer = "mackplots")
+    
     names_params = c("field_length", 'field_width', 'field_setback_x', 'field_setback_y',
                      'left_subguard_width', 'right_subguard_width', 'bottom_subguard_length',
                      'top_subguard_length', 'top_guard', 'bottom_guard', 'left_guard_width',
@@ -109,7 +116,8 @@ server <- function(input, output, session) {
     
     output$mymap <- renderLeaflet({
         
-        spolys = readOGR(dsn = "~/Documents", layer = "mackplots")
+        # spolys = readOGR(dsn = "~/Documents", layer = "mackplots")
+        # spolys = NULL
         
         leaflet() %>%
             # addProviderTiles(providers$Stamen.TonerLite, options = providerTileOptions(noWrap = TRUE)) %>%
@@ -118,8 +126,16 @@ server <- function(input, output, session) {
             # addProviderTiles(providers$OpenStreetMap,
             # addProviderTiles(providers$CartoDB,
                              options = providerTileOptions(minZoom = 8, maxZoom = 24))  %>% 
-            setView(lng = -89, lat = 44, zoom = 6) %>%
-            addPolygons(data = spolys)
+            # setView(lng = -89, lat = 44, zoom = 12)
+            setView( lng =  -89.539541, lat = 44.119338, zoom = 18) 
+            # %>% addMarkers(data = origin())
+            # addPolygons(data = spolys)
+    })
+    
+    observe({
+        leafletProxy("mymap") %>%
+            clearMarkers() %>%
+            addMarkers(data = origin())
     })
     
     # When map is clicked, collect coordinates
@@ -129,20 +145,20 @@ server <- function(input, output, session) {
         if (is.null(event))
             return()
         
-        # output$value <- renderText({ 
-        #     paste(
-        #         paste("Latitude:", event$lat),
-        #         paste("Longitude:", event$lng),
-        #         sep="\n"
-        #     )
-        # })
         updateNumericInput(session, "origin_lat", value = event$lat)
         updateNumericInput(session, "origin_lng", value = event$lng)
 
     })
     
-    randomVals <- eventReactive(input$show_plot, {
-        runif(input$n)
+    # Take object from parameter page and convert to spatial poly data frame and plot it
+    observeEvent(input$show_plot, {
+        if (is.null(spolys)){
+            return()
+        } else {
+            leafletProxy("mymap") %>%
+                clearShapes() %>%
+                addPolygons(data = spolys)
+        }
     })
     
     param_dat = reactive({
